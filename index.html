@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kasa Açma Oyunu</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { Lock, Unlock, Volume2, ChevronUp, ChevronDown, CheckCircle2, PlayCircle, Image: ImageIcon } = lucide;
+
+        // --- VERİLER VE SEVİYELER ---
+        const WHEEL_OPTIONS = [
+          ['Benim', 'Senin'],
+          ['Baba', 'Anne', 'Dede'],
+          ['-m', '-n', '-si']
+        ];
+
+        const LEVELS = [
+          { id: 1, hintText: "Benim babam", target: [0, 0, 0], instruction: "Kasayı açmak için doğru kelimeleri birleştir: Benim babam." },
+          { id: 2, hintText: "Senin annen", target: [1, 1, 1], instruction: "Kasayı açmak için doğru kelimeleri birleştir: Senin annen." }
+        ];
+
+        const Wheel = ({ options, selectedIndex, onChange }) => {
+          const handleUp = () => onChange((selectedIndex - 1 + options.length) % options.length);
+          const handleDown = () => onChange((selectedIndex + 1) % options.length);
+
+          const prevIndex = (selectedIndex - 1 + options.length) % options.length;
+          const nextIndex = (selectedIndex + 1) % options.length;
+
+          return (
+            <div className="relative w-28 h-48 bg-gradient-to-b from-gray-300 via-gray-100 to-gray-300 border-4 border-gray-500 rounded-xl shadow-inner flex flex-col items-center justify-between overflow-hidden">
+              <button onClick={handleUp} className="w-full h-10 flex justify-center items-center text-gray-600 hover:text-black z-20"><ChevronUp size={28} /></button>
+              <div className="relative w-full flex-1 flex flex-col items-center justify-center">
+                <div className="absolute top-0 text-gray-400 font-bold text-lg opacity-60">{options[prevIndex]}</div>
+                <div className="absolute text-blue-800 font-extrabold text-2xl bg-white/50 w-full text-center py-1 border-y border-gray-300">{options[selectedIndex]}</div>
+                <div className="absolute bottom-0 text-gray-400 font-bold text-lg opacity-60">{options[nextIndex]}</div>
+              </div>
+              <button onClick={handleDown} className="w-full h-10 flex justify-center items-center text-gray-600 hover:text-black z-20"><ChevronDown size={28} /></button>
+            </div>
+          );
+        };
+
+        function App() {
+          const [levelIndex, setLevelIndex] = useState(0);
+          const [selections, setSelections] = useState([0, 0, 0]);
+          const [isUnlocked, setIsUnlocked] = useState(false);
+          const [isError, setIsError] = useState(false);
+          const [gameFinished, setGameFinished] = useState(false);
+          const currentLevel = LEVELS[levelIndex];
+
+          const speak = (text) => {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'tr-TR';
+            window.speechSynthesis.speak(utterance);
+          };
+
+          useEffect(() => { if (!gameFinished && !isUnlocked) speak(currentLevel.instruction); }, [levelIndex, gameFinished]);
+
+          const handleUnlockClick = () => {
+            const isCorrect = selections.every((val, idx) => val === currentLevel.target[idx]);
+            if (isCorrect) {
+              setIsUnlocked(true);
+              speak("Tebrikler!");
+              setTimeout(() => {
+                if (levelIndex + 1 < LEVELS.length) {
+                  setLevelIndex(prev => prev + 1);
+                  setSelections([0, 0, 0]);
+                  setIsUnlocked(false);
+                } else { setGameFinished(true); }
+              }, 3000);
+            } else {
+              setIsError(true);
+              speak("Yanlış şifre.");
+              setTimeout(() => setIsError(false), 800);
+            }
+          };
+
+          if (gameFinished) return (
+            <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center">
+                <div className="bg-green-600 p-12 rounded-3xl text-white">
+                    <CheckCircle2 size={80} className="mx-auto mb-4" />
+                    <h1 className="text-3xl font-bold">GÖREV TAMAMLANDI!</h1>
+                    <button className="mt-6 bg-white text-green-700 px-6 py-3 rounded-full font-bold">Videoya Devam Et</button>
+                </div>
+            </div>
+          );
+
+          return (
+            <div className="min-h-screen bg-slate-800 flex flex-col items-center justify-center p-4">
+              <div className="mb-8 bg-slate-700 p-6 rounded-2xl text-white w-full max-w-xl flex items-center gap-4">
+                <div className="text-4xl">🤖</div>
+                <div className="flex-1 text-2xl font-bold">"{currentLevel.hintText}"</div>
+                <button onClick={() => speak(currentLevel.instruction)} className="p-3 bg-slate-600 rounded-full"><Volume2 /></button>
+              </div>
+              
+              <div className={`bg-slate-600 p-8 rounded-3xl border-8 border-slate-500 w-full max-w-2xl ${isError ? 'animate-bounce' : ''}`}>
+                <div className="bg-slate-900 rounded-xl p-8 flex justify-center gap-4 min-h-[300px] items-center">
+                  {isUnlocked ? (
+                    <div className="text-white text-center">
+                        <ImageIcon size={64} className="mx-auto mb-2" />
+                        <p className="text-2xl font-bold">Kasa Açıldı!</p>
+                    </div>
+                  ) : (
+                    WHEEL_OPTIONS.map((opt, i) => (
+                      <Wheel key={i} options={opt} selectedIndex={selections[i]} onChange={(v) => {
+                        const newS = [...selections]; newS[i] = v; setSelections(newS);
+                      }} />
+                    ))
+                  )}
+                </div>
+                <button onClick={handleUnlockClick} className="w-full mt-6 py-4 bg-yellow-500 rounded-full font-bold text-xl flex items-center justify-center gap-2">
+                  {isUnlocked ? <Unlock /> : <Lock />} {isUnlocked ? "AÇILDI" : "KİLİDİ AÇ"}
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

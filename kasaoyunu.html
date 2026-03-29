@@ -1,0 +1,363 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Lock, Unlock, Volume2, ChevronUp, ChevronDown, CheckCircle2, PlayCircle, Image as ImageIcon } from 'lucide-react';
+
+// --- VERİLER VE SEVİYELER ---
+const WHEEL_OPTIONS = [
+  ['Benim', 'Senin'],
+  ['Baba', 'Anne', 'Dede'],
+  ['-m', '-n', '-si']
+];
+
+const LEVELS = [
+  {
+    id: 1,
+    hintText: "Benim babam",
+    target: [0, 0, 0], // Benim [0], Baba [0], -m [0]
+    instruction: "Kasayı açmak için doğru kelimeleri birleştir: Benim babam."
+  },
+  {
+    id: 2,
+    hintText: "Senin annen",
+    target: [1, 1, 1], // Senin [1], Anne [1], -n [1]
+    instruction: "Kasayı açmak için doğru kelimeleri birleştir: Senin annen."
+  }
+];
+
+// --- YARDIMCI BİLEŞEN: SİLİNDİR ÇARK (WHEEL) ---
+const Wheel = ({ options, selectedIndex, onChange }) => {
+  const handleUp = () => {
+    onChange((selectedIndex - 1 + options.length) % options.length);
+    playClickSound();
+  };
+
+  const handleDown = () => {
+    onChange((selectedIndex + 1) % options.length);
+    playClickSound();
+  };
+
+  // Basit bir "tık" sesi efekti
+  const playClickSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+      gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.1);
+    } catch (e) {
+      // AudioContext desteklenmiyorsa sessizce geç
+    }
+  };
+
+  const prevIndex = (selectedIndex - 1 + options.length) % options.length;
+  const nextIndex = (selectedIndex + 1) % options.length;
+
+  return (
+    <div className="relative w-28 h-48 bg-gradient-to-b from-gray-300 via-gray-100 to-gray-300 border-4 border-gray-500 rounded-xl shadow-inner flex flex-col items-center justify-between overflow-hidden">
+      {/* Üst Gölge ve Buton */}
+      <div className="absolute top-0 w-full h-12 bg-gradient-to-b from-black/40 to-transparent z-10 pointer-events-none"></div>
+      <button 
+        onClick={handleUp} 
+        className="w-full h-10 flex justify-center items-center text-gray-600 hover:text-black hover:bg-white/30 z-20 transition-colors"
+      >
+        <ChevronUp size={28} />
+      </button>
+
+      {/* Silindir İçeriği (Faux 3D) */}
+      <div className="relative w-full flex-1 flex flex-col items-center justify-center">
+        {/* Önceki (Üstte silik) */}
+        <div className="absolute top-0 text-gray-400 font-bold text-lg transform scale-75 -translate-y-2 opacity-60">
+          {options[prevIndex]}
+        </div>
+        
+        {/* Seçili Olan (Ortada net) */}
+        <div className="absolute text-blue-800 font-extrabold text-2xl transform scale-110 shadow-sm bg-white/50 w-full text-center py-1 border-y border-gray-300">
+          {options[selectedIndex]}
+        </div>
+        
+        {/* Sonraki (Altta silik) */}
+        <div className="absolute bottom-0 text-gray-400 font-bold text-lg transform scale-75 translate-y-2 opacity-60">
+          {options[nextIndex]}
+        </div>
+      </div>
+
+      {/* Alt Gölge ve Buton */}
+      <div className="absolute bottom-0 w-full h-12 bg-gradient-to-t from-black/40 to-transparent z-10 pointer-events-none"></div>
+      <button 
+        onClick={handleDown} 
+        className="w-full h-10 flex justify-center items-center text-gray-600 hover:text-black hover:bg-white/30 z-20 transition-colors"
+      >
+        <ChevronDown size={28} />
+      </button>
+    </div>
+  );
+};
+
+
+// --- ANA UYGULAMA BİLEŞENİ ---
+export default function App() {
+  const [levelIndex, setLevelIndex] = useState(0);
+  const [selections, setSelections] = useState([0, 0, 0]);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [gameFinished, setGameFinished] = useState(false);
+  
+  const currentLevel = LEVELS[levelIndex];
+
+  // Sesli okuma fonksiyonu
+  const speak = (text) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel(); // Önceki sesleri durdur
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'tr-TR';
+      utterance.rate = 0.9; // Çocuklar için biraz daha yavaş
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  // Seviye başladığında yönergeyi oku
+  useEffect(() => {
+    if (!gameFinished && !isUnlocked) {
+      speak(currentLevel.instruction);
+    }
+  }, [levelIndex, gameFinished]);
+
+  const handleWheelChange = (wheelIndex, newValue) => {
+    if (isUnlocked) return;
+    const newSelections = [...selections];
+    newSelections[wheelIndex] = newValue;
+    setSelections(newSelections);
+    setIsError(false); // Yeni hamle yapınca hatayı sıfırla
+  };
+
+  const handleUnlockClick = () => {
+    if (isUnlocked) return;
+
+    const isCorrect = selections.every((val, idx) => val === currentLevel.target[idx]);
+
+    if (isCorrect) {
+      // DOĞRU
+      setIsUnlocked(true);
+      setIsError(false);
+      speak("Tebrikler! Kasa açıldı.");
+      playSuccessSound();
+      
+      // Biraz bekle ve diğer seviyeye geç
+      setTimeout(() => {
+        if (levelIndex + 1 < LEVELS.length) {
+          setLevelIndex(prev => prev + 1);
+          setSelections([0, 0, 0]);
+          setIsUnlocked(false);
+        } else {
+          setGameFinished(true);
+          speak("Harika! Tüm kilitleri açtın. Videoya devam edebilirsin.");
+        }
+      }, 4000); // 4 saniye fotoğrafı göster
+    } else {
+      // YANLIŞ
+      setIsError(true);
+      speak("Yanlış şifre. " + currentLevel.instruction);
+      playErrorSound();
+      
+      setTimeout(() => {
+        setIsError(false);
+      }, 800);
+    }
+  };
+
+  // Basit başarı sesi
+  const playSuccessSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+      oscillator.frequency.linearRampToValueAtTime(800, audioCtx.currentTime + 0.3);
+      oscillator.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.6);
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.1);
+      gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.6);
+    } catch (e) {}
+  };
+
+  // Basit hata sesi (Tık tık / Buzzer)
+  const playErrorSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.type = 'sawtooth';
+      oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+      gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.3);
+    } catch (e) {}
+  };
+
+  // İpucu tekrar butonu
+  const replayHint = () => {
+    speak(currentLevel.instruction);
+  };
+
+  if (gameFinished) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 font-sans text-center">
+        <div className="bg-gradient-to-br from-green-400 to-green-600 p-12 rounded-3xl shadow-2xl flex flex-col items-center animate-bounce">
+          <CheckCircle2 size={100} className="text-white mb-6" />
+          <h1 className="text-4xl font-extrabold text-white mb-4">GÖREV TAMAMLANDI!</h1>
+          <p className="text-xl text-green-100 font-medium max-w-md">
+            Harika iş çıkardın! Kasanın tüm şifrelerini çözdün ve kilitleri açtın.
+          </p>
+          <button className="mt-8 flex items-center gap-3 bg-white text-green-700 px-8 py-4 rounded-full font-bold text-xl hover:bg-green-50 transition-colors shadow-lg">
+            <PlayCircle size={28} />
+            Videoya Devam Et
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-800 flex flex-col items-center justify-center p-4 font-sans select-none">
+      
+      {/* Üst Bilgi / Karakter İpucu */}
+      <div className="mb-8 flex items-center gap-4 bg-slate-700 p-4 rounded-2xl shadow-lg max-w-2xl w-full border border-slate-600">
+        <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center border-4 border-white shadow-md flex-shrink-0">
+          <span className="text-3xl">🤖</span>
+        </div>
+        <div className="flex-1">
+          <p className="text-blue-200 text-sm font-semibold mb-1">Şifre İpucu ({levelIndex + 1}/2):</p>
+          <p className="text-white text-2xl font-bold">"{currentLevel.hintText}"</p>
+        </div>
+        <button 
+          onClick={replayHint}
+          className="w-14 h-14 bg-slate-600 rounded-full flex items-center justify-center text-white hover:bg-blue-500 transition-colors shadow-md"
+          title="Yönergeyi Tekrar Dinle"
+        >
+          <Volume2 size={28} />
+        </button>
+      </div>
+
+      {/* KASA (SAFE) */}
+      <div className={`relative bg-gradient-to-br from-slate-600 to-slate-800 p-8 rounded-3xl shadow-2xl border-8 border-slate-500 w-full max-w-3xl transition-transform duration-100 ${isError ? 'translate-x-2 -translate-x-2 animate-pulse' : ''}`}>
+        
+        {/* Kasa Kulpu ve Işıklar */}
+        <div className="flex justify-between items-center mb-8 border-b-2 border-slate-500 pb-4">
+          <div className="flex gap-3">
+             <div className="w-4 h-4 rounded-full bg-slate-400 shadow-inner"></div>
+             <div className="w-4 h-4 rounded-full bg-slate-400 shadow-inner"></div>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="bg-slate-900 px-6 py-2 rounded-lg border-2 border-slate-700 font-mono text-xl text-green-400 tracking-widest shadow-inner">
+              KASA-0{levelIndex + 1}
+            </div>
+            {/* Durum Işığı */}
+            <div className={`w-8 h-8 rounded-full border-2 shadow-[0_0_15px_rgba(0,0,0,0.5)] ${
+              isUnlocked ? 'bg-green-500 border-green-300 shadow-green-500' : 
+              isError ? 'bg-red-500 border-red-300 shadow-red-500' : 
+              'bg-yellow-500 border-yellow-300 shadow-yellow-500'
+            }`}></div>
+          </div>
+        </div>
+
+        {/* İç Kısım (Açıldığında değişir) */}
+        <div className="relative bg-slate-900 rounded-xl border-4 border-slate-700 p-8 flex flex-col items-center justify-center min-h-[300px] overflow-hidden">
+          
+          {isUnlocked ? (
+            // Kasa Açıldı Görünümü (Aile Fotoğrafı & Konfeti)
+            <div className="flex flex-col items-center animate-in zoom-in duration-500">
+              <div className="absolute inset-0 pointer-events-none flex justify-center">
+                 {/* Basit CSS Konfeti Efekti */}
+                 <div className="w-2 h-6 bg-red-500 absolute animate-[fall_2s_linear_infinite] left-[20%]"></div>
+                 <div className="w-3 h-3 bg-blue-500 absolute rounded-full animate-[fall_3s_linear_infinite] left-[40%] delay-100"></div>
+                 <div className="w-4 h-4 bg-yellow-400 absolute animate-[fall_2.5s_linear_infinite] left-[60%] delay-300"></div>
+                 <div className="w-2 h-8 bg-green-500 absolute animate-[fall_3.5s_linear_infinite] left-[80%] delay-200"></div>
+              </div>
+              
+              <div className="bg-white p-4 rounded-lg shadow-2xl rotate-2 transform hover:rotate-0 transition-transform cursor-pointer">
+                <div className="w-64 h-48 bg-gray-200 border-2 border-dashed border-gray-400 flex flex-col items-center justify-center text-gray-500 mb-4 rounded">
+                  <ImageIcon size={64} className="mb-2 opacity-50" />
+                  <span className="font-semibold text-xl text-center px-4">{currentLevel.target.map((t, i) => WHEEL_OPTIONS[i][t]).join('')} Fotoğrafı</span>
+                </div>
+                <p className="text-center font-handwriting text-2xl text-black font-bold">Ailemiz ❤️</p>
+              </div>
+            </div>
+          ) : (
+            // Kilit Kapalı Görünümü (Çarklar)
+            <div className="flex items-center justify-center gap-6">
+              <Wheel 
+                options={WHEEL_OPTIONS[0]} 
+                selectedIndex={selections[0]} 
+                onChange={(v) => handleWheelChange(0, v)} 
+              />
+              <span className="text-4xl text-slate-500 font-bold">+</span>
+              <Wheel 
+                options={WHEEL_OPTIONS[1]} 
+                selectedIndex={selections[1]} 
+                onChange={(v) => handleWheelChange(1, v)} 
+              />
+              <span className="text-4xl text-slate-500 font-bold">+</span>
+              <Wheel 
+                options={WHEEL_OPTIONS[2]} 
+                selectedIndex={selections[2]} 
+                onChange={(v) => handleWheelChange(2, v)} 
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Buton Alanı */}
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={handleUnlockClick}
+            disabled={isUnlocked}
+            className={`
+              relative group flex items-center justify-center gap-3 px-12 py-5 rounded-full font-black text-2xl tracking-wider transition-all duration-200
+              ${isUnlocked 
+                ? 'bg-slate-700 text-slate-500 cursor-not-allowed shadow-inner' 
+                : isError
+                  ? 'bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)] scale-95'
+                  : 'bg-gradient-to-b from-yellow-400 to-yellow-600 text-yellow-900 hover:from-yellow-300 hover:to-yellow-500 hover:scale-105 shadow-[0_10px_20px_rgba(0,0,0,0.4),inset_0_2px_0_rgba(255,255,255,0.5)] active:scale-95 active:shadow-inner'
+              }
+            `}
+          >
+            {isUnlocked ? <Unlock size={32} /> : <Lock size={32} />}
+            {isUnlocked ? 'AÇILDI' : 'KİLİDİ AÇ'}
+            
+            {/* Buton Parlaması */}
+            {!isUnlocked && !isError && (
+              <div className="absolute inset-0 rounded-full overflow-hidden">
+                <div className="absolute top-0 left-[-100%] w-1/2 h-full bg-white/30 skew-x-12 group-hover:animate-[shine_1s_ease-in-out]"></div>
+              </div>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fall {
+          0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(400px) rotate(360deg); opacity: 0; }
+        }
+        @keyframes shine {
+          100% { left: 200%; }
+        }
+      `}} />
+    </div>
+  );
+}

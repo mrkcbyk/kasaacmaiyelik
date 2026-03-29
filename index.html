@@ -1,173 +1,322 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kasa Açma Oyunu</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @keyframes fall {
-            0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(400px) rotate(360deg); opacity: 0; }
-        }
-        @keyframes shine { 100% { left: 200%; } }
-        .animate-fall { animation: fall 3s linear infinite; }
-        .animate-shine { animation: shine 1s ease-in-out; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kasa Oyunu</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    @keyframes fall {
+      0%   { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(450px) rotate(360deg); opacity: 0; }
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-10px); }
+      40%     { transform: translateX(10px); }
+      60%     { transform: translateX(-6px); }
+      80%     { transform: translateX(6px); }
+    }
+    .shake { animation: shake 0.4s ease-in-out; }
+    .confetti-piece { position: absolute; animation: fall linear infinite; }
+  </style>
 </head>
-<body>
-    <div id="root"></div>
+<body class="bg-slate-900 m-0 p-0">
+<div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
 
-        // İkonları Lucide kütüphanesinden alalım
-        const Icon = ({ name, size = 24, className = "" }) => {
-            const iconRef = useRef(null);
-            useEffect(() => {
-                if (iconRef.current) {
-                    lucide.createIcons({
-                        targets: [iconRef.current]
-                    });
-                }
-            }, [name]);
-            return <i data-lucide={name} style={{width: size, height: size}} className={className}></i>;
-        };
+// ---- SVG IKONLAR (Lucide) ----
+const LockIcon = ({size=24}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+);
+const UnlockIcon = ({size=24}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+  </svg>
+);
+const VolumeIcon = ({size=24}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+  </svg>
+);
+const ChevUpIcon = ({size=24}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="18 15 12 9 6 15"/>
+  </svg>
+);
+const ChevDownIcon = ({size=24}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>
+);
+const CheckIcon = ({size=24}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+  </svg>
+);
+const PlayIcon = ({size=24}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+  </svg>
+);
+const ImgIcon = ({size=24}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+  </svg>
+);
 
-        const WHEEL_OPTIONS = [
-            ['Benim', 'Senin'],
-            ['Baba', 'Anne', 'Dede'],
-            ['-m', '-n', '-si']
-        ];
+// ---- VERİLER ----
+const WHEEL_OPTIONS = [
+  ['Benim', 'Senin', 'Onun'],
+  ['Baba', 'Anne', 'Dede'],
+  ['-m', '-n', '-si']
+];
+const LEVELS = [
+  { id:1, hintText:"Benim babam",  target:[0,0,0], instruction:"Kasayı açmak için doğru kelimeleri birleştir: Benim babam." },
+  { id:2, hintText:"Senin annen",  target:[1,1,1], instruction:"Kasayı açmak için doğru kelimeleri birleştir: Senin annen." },
+  { id:3, hintText:"Onun dedesi", target:[2,2,2], instruction:"Kasayı açmak için doğru kelimeleri birleştir: Onun dedesi." }
+];
 
-        const LEVELS = [
-            { id: 1, hintText: "Benim babam", target: [0, 0, 0], instruction: "Kasayı açmak için doğru kelimeleri birleştir: Benim babam." },
-            { id: 2, hintText: "Senin annen", target: [1, 1, 1], instruction: "Kasayı açmak için doğru kelimeleri birleştir: Senin annen." }
-        ];
+// ---- SES ARAÇLARI ----
+function playClick() {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(600,ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(300,ctx.currentTime+0.1);
+    g.gain.setValueAtTime(0.4,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+0.1);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.1);
+  } catch(e){}
+}
+function playSuccess() {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='triangle';
+    o.frequency.setValueAtTime(400,ctx.currentTime);
+    o.frequency.linearRampToValueAtTime(800,ctx.currentTime+0.3);
+    o.frequency.linearRampToValueAtTime(1200,ctx.currentTime+0.6);
+    g.gain.setValueAtTime(0,ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0.5,ctx.currentTime+0.1);
+    g.gain.linearRampToValueAtTime(0,ctx.currentTime+0.6);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.6);
+  } catch(e){}
+}
+function playError() {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='sawtooth';
+    o.frequency.setValueAtTime(150,ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(100,ctx.currentTime+0.3);
+    g.gain.setValueAtTime(0.5,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+0.3);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.3);
+  } catch(e){}
+}
+function speak(text) {
+  if(!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang='tr-TR'; u.rate=0.9;
+  window.speechSynthesis.speak(u);
+}
 
-        const Wheel = ({ options, selectedIndex, onChange }) => {
-            const handleUp = () => onChange((selectedIndex - 1 + options.length) % options.length);
-            const handleDown = () => onChange((selectedIndex + 1) % options.length);
+// ---- ÇARK BİLEŞENİ ----
+function Wheel({ options, selectedIndex, onChange }) {
+  const prev = (selectedIndex - 1 + options.length) % options.length;
+  const next = (selectedIndex + 1) % options.length;
+  return (
+    <div style={{position:'relative', width:112, height:192, background:'linear-gradient(to bottom, #d1d5db, #f3f4f6, #d1d5db)', border:'4px solid #6b7280', borderRadius:12, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'space-between', overflow:'hidden', boxShadow:'inset 0 2px 8px rgba(0,0,0,0.3)'}}>
+      {/* Üst gölge */}
+      <div style={{position:'absolute', top:0, left:0, right:0, height:48, background:'linear-gradient(to bottom, rgba(0,0,0,0.4), transparent)', zIndex:10, pointerEvents:'none'}}/>
+      {/* Yukarı butonu */}
+      <button onClick={()=>{onChange((selectedIndex-1+options.length)%options.length);playClick();}}
+        style={{width:'100%', height:40, display:'flex', justifyContent:'center', alignItems:'center', color:'#4b5563', background:'transparent', border:'none', cursor:'pointer', zIndex:20, transition:'background 0.2s'}}
+        onMouseEnter={e=>e.target.style.background='rgba(255,255,255,0.3)'}
+        onMouseLeave={e=>e.target.style.background='transparent'}>
+        <ChevUpIcon size={28}/>
+      </button>
+      {/* İçerik */}
+      <div style={{position:'relative', width:'100%', flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
+        <div style={{position:'absolute', top:0, color:'#9ca3af', fontWeight:'bold', fontSize:18, opacity:0.6, transform:'scale(0.75) translateY(-8px)'}}>{options[prev]}</div>
+        <div style={{position:'absolute', color:'#1e3a8a', fontWeight:900, fontSize:22, background:'rgba(255,255,255,0.5)', width:'100%', textAlign:'center', padding:'4px 0', borderTop:'1px solid #d1d5db', borderBottom:'1px solid #d1d5db', transform:'scale(1.1)'}}>{options[selectedIndex]}</div>
+        <div style={{position:'absolute', bottom:0, color:'#9ca3af', fontWeight:'bold', fontSize:18, opacity:0.6, transform:'scale(0.75) translateY(8px)'}}>{options[next]}</div>
+      </div>
+      {/* Alt gölge */}
+      <div style={{position:'absolute', bottom:0, left:0, right:0, height:48, background:'linear-gradient(to top, rgba(0,0,0,0.4), transparent)', zIndex:10, pointerEvents:'none'}}/>
+      {/* Aşağı butonu */}
+      <button onClick={()=>{onChange((selectedIndex+1)%options.length);playClick();}}
+        style={{width:'100%', height:40, display:'flex', justifyContent:'center', alignItems:'center', color:'#4b5563', background:'transparent', border:'none', cursor:'pointer', zIndex:20, transition:'background 0.2s'}}
+        onMouseEnter={e=>e.target.style.background='rgba(255,255,255,0.3)'}
+        onMouseLeave={e=>e.target.style.background='transparent'}>
+        <ChevDownIcon size={28}/>
+      </button>
+    </div>
+  );
+}
 
-            const prevIndex = (selectedIndex - 1 + options.length) % options.length;
-            const nextIndex = (selectedIndex + 1) % options.length;
+// ---- KONFETİ ----
+const CONFETTI = [
+  {left:'15%', color:'#ef4444', w:8, h:24, dur:'2s', delay:'0s'},
+  {left:'30%', color:'#3b82f6', w:12, h:12, borderRadius:'50%', dur:'3s', delay:'0.2s'},
+  {left:'50%', color:'#facc15', w:14, h:14, dur:'2.5s', delay:'0.4s'},
+  {left:'65%', color:'#22c55e', w:8, h:28, dur:'3.2s', delay:'0.1s'},
+  {left:'80%', color:'#a855f7', w:10, h:10, borderRadius:'50%', dur:'2.8s', delay:'0.5s'},
+  {left:'45%', color:'#f97316', w:6, h:20, dur:'3.5s', delay:'0.3s'},
+];
 
-            return (
-                <div className="relative w-24 md:w-28 h-48 bg-gradient-to-b from-gray-300 via-gray-100 to-gray-300 border-4 border-gray-500 rounded-xl shadow-inner flex flex-col items-center justify-between overflow-hidden">
-                    <button onClick={handleUp} className="w-full h-10 flex justify-center items-center text-gray-600 hover:text-black z-20">
-                        <Icon name="chevron-up" size={28} />
-                    </button>
-                    <div className="relative w-full flex-1 flex flex-col items-center justify-center">
-                        <div className="absolute top-0 text-gray-400 font-bold text-lg opacity-60">{options[prevIndex]}</div>
-                        <div className="absolute text-blue-800 font-extrabold text-xl md:text-2xl bg-white/50 w-full text-center py-1 border-y border-gray-300">
-                            {options[selectedIndex]}
-                        </div>
-                        <div className="absolute bottom-0 text-gray-400 font-bold text-lg opacity-60">{options[nextIndex]}</div>
-                    </div>
-                    <button onClick={handleDown} className="w-full h-10 flex justify-center items-center text-gray-600 hover:text-black z-20">
-                        <Icon name="chevron-down" size={28} />
-                    </button>
-                </div>
-            );
-        };
+// ---- ANA UYGULAMA ----
+function App() {
+  const [levelIndex, setLevelIndex] = useState(0);
+  const [selections, setSelections] = useState([0,0,0]);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [gameFinished, setGameFinished] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
 
-        function App() {
-            const [levelIndex, setLevelIndex] = useState(0);
-            const [selections, setSelections] = useState([0, 0, 0]);
-            const [isUnlocked, setIsUnlocked] = useState(false);
-            const [isError, setIsError] = useState(false);
-            const [gameFinished, setGameFinished] = useState(false);
+  const level = LEVELS[levelIndex];
 
-            const currentLevel = LEVELS[levelIndex];
+  useEffect(() => {
+    if (!gameFinished && !isUnlocked) speak(level.instruction);
+  }, [levelIndex, gameFinished]);
 
-            const speak = (text) => {
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'tr-TR';
-                window.speechSynthesis.speak(utterance);
-            };
+  const handleChange = (i, v) => { if(isUnlocked) return; const s=[...selections]; s[i]=v; setSelections(s); setIsError(false); };
 
-            useEffect(() => {
-                if (!gameFinished && !isUnlocked) speak(currentLevel.instruction);
-            }, [levelIndex, gameFinished]);
-
-            const handleUnlockClick = () => {
-                const isCorrect = selections.every((val, idx) => val === currentLevel.target[idx]);
-                if (isCorrect) {
-                    setIsUnlocked(true);
-                    speak("Tebrikler! Kasa açıldı.");
-                    setTimeout(() => {
-                        if (levelIndex + 1 < LEVELS.length) {
-                            setLevelIndex(prev => prev + 1);
-                            setSelections([0, 0, 0]);
-                            setIsUnlocked(false);
-                        } else {
-                            setGameFinished(true);
-                            speak("Harika! Tüm kilitleri açtın.");
-                        }
-                    }, 4000);
-                } else {
-                    setIsError(true);
-                    speak("Yanlış şifre.");
-                    setTimeout(() => setIsError(false), 800);
-                }
-            };
-
-            if (gameFinished) return (
-                <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center">
-                    <div className="bg-green-600 p-12 rounded-3xl shadow-2xl text-white">
-                        <Icon name="check-circle-2" size={80} className="mx-auto mb-4" />
-                        <h1 className="text-3xl font-bold mb-4">GÖREV TAMAMLANDI!</h1>
-                        <button className="bg-white text-green-700 px-8 py-3 rounded-full font-bold text-xl">Videoya Devam Et</button>
-                    </div>
-                </div>
-            );
-
-            return (
-                <div className="min-h-screen bg-slate-800 flex flex-col items-center justify-center p-4 font-sans select-none">
-                    <div className="mb-6 flex items-center gap-4 bg-slate-700 p-4 rounded-2xl shadow-lg w-full max-w-xl">
-                        <div className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center border-4 border-white text-2xl">🤖</div>
-                        <div className="flex-1">
-                            <p className="text-blue-200 text-xs font-bold">Şifre İpucu ({levelIndex + 1}/2):</p>
-                            <p className="text-white text-xl font-bold font-mono">"{currentLevel.hintText}"</p>
-                        </div>
-                        <button onClick={() => speak(currentLevel.instruction)} className="p-3 bg-slate-600 rounded-full text-white hover:bg-blue-500">
-                            <Icon name="volume-2" size={24} />
-                        </button>
-                    </div>
-
-                    <div className={`bg-slate-700 p-6 md:p-8 rounded-3xl border-8 border-slate-500 w-full max-w-2xl transition-all ${isError ? 'bg-red-900 border-red-500' : ''}`}>
-                        <div className="bg-slate-900 rounded-xl p-6 flex justify-center items-center gap-4 min-h-[250px] relative overflow-hidden">
-                            {isUnlocked ? (
-                                <div className="text-center animate-bounce">
-                                    <Icon name="image" size={64} className="text-white mx-auto mb-2 opacity-50" />
-                                    <p className="text-white text-xl font-bold">Fotoğraf Bulundu!</p>
-                                </div>
-                            ) : (
-                                <>
-                                    <Wheel options={WHEEL_OPTIONS[0]} selectedIndex={selections[0]} onChange={v => {const n=[...selections]; n[0]=v; setSelections(n)}} />
-                                    <span className="text-white text-2xl font-bold">+</span>
-                                    <Wheel options={WHEEL_OPTIONS[1]} selectedIndex={selections[1]} onChange={v => {const n=[...selections]; n[1]=v; setSelections(n)}} />
-                                    <span className="text-white text-2xl font-bold">+</span>
-                                    <Wheel options={WHEEL_OPTIONS[2]} selectedIndex={selections[2]} onChange={v => {const n=[...selections]; n[2]=v; setSelections(n)}} />
-                                </>
-                            )}
-                        </div>
-                        <button onClick={handleUnlockClick} className="w-full mt-6 py-4 bg-yellow-500 hover:bg-yellow-400 text-yellow-950 rounded-full font-black text-2xl flex items-center justify-center gap-3">
-                            <Icon name={isUnlocked ? "unlock" : "lock"} size={28} />
-                            {isUnlocked ? "AÇILDI" : "KİLİDİ AÇ"}
-                        </button>
-                    </div>
-                </div>
-            );
+  const handleUnlock = () => {
+    if(isUnlocked) return;
+    const ok = selections.every((v,i) => v === level.target[i]);
+    if(ok) {
+      setIsUnlocked(true); setIsError(false);
+      speak("Tebrikler! Kasa açıldı."); playSuccess();
+      setTimeout(() => {
+        if(levelIndex+1 < LEVELS.length) {
+          setLevelIndex(p=>p+1); setSelections([0,0,0]); setIsUnlocked(false);
+        } else {
+          setGameFinished(true);
+          speak("Harika! Tüm kilitleri açtın. Videoya devam edebilirsin.");
         }
+      }, 4000);
+    } else {
+      setIsError(true); setShakeKey(k=>k+1);
+      speak("Yanlış şifre. "+level.instruction); playError();
+      setTimeout(() => setIsError(false), 800);
+    }
+  };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+  if(gameFinished) return (
+    <div style={{minHeight:'100vh', background:'#0f172a', display:'flex', alignItems:'center', justifyContent:'center', padding:24, fontFamily:'sans-serif'}}>
+      <div style={{background:'linear-gradient(135deg,#4ade80,#16a34a)', padding:64, borderRadius:32, boxShadow:'0 25px 50px rgba(0,0,0,0.5)', display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center', animation:'bounce 1s infinite'}}>
+        <CheckIcon size={100} style={{color:'white', marginBottom:24}}/>
+        <h1 style={{fontSize:36, fontWeight:900, color:'white', marginBottom:16}}>GÖREV TAMAMLANDI!</h1>
+        <p style={{fontSize:18, color:'#bbf7d0', maxWidth:400, lineHeight:1.6}}>Harika iş çıkardın! Kasanın tüm şifrelerini çözdün ve kilitleri açtın.</p>
+        <button style={{marginTop:32, display:'flex', alignItems:'center', gap:12, background:'white', color:'#15803d', padding:'16px 32px', borderRadius:9999, fontWeight:700, fontSize:20, border:'none', cursor:'pointer', boxShadow:'0 4px 12px rgba(0,0,0,0.2)'}}>
+          <PlayIcon size={28}/> Videoya Devam Et
+        </button>
+      </div>
+    </div>
+  );
+
+  const lightColor = isUnlocked ? '#22c55e' : isError ? '#ef4444' : '#eab308';
+  const btnBg = isUnlocked
+    ? 'linear-gradient(to bottom, #475569, #334155)'
+    : isError
+      ? 'linear-gradient(to bottom, #dc2626, #b91c1c)'
+      : 'linear-gradient(to bottom, #fde047, #ca8a04)';
+
+  return (
+    <div style={{minHeight:'100vh', background:'#1e293b', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:16, fontFamily:'sans-serif', userSelect:'none'}}>
+
+      {/* İPUCU */}
+      <div style={{marginBottom:32, display:'flex', alignItems:'center', gap:16, background:'#334155', padding:16, borderRadius:20, boxShadow:'0 10px 25px rgba(0,0,0,0.3)', maxWidth:640, width:'100%', border:'1px solid #475569'}}>
+        <div style={{width:64, height:64, background:'#3b82f6', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', border:'4px solid white', boxShadow:'0 4px 8px rgba(0,0,0,0.3)', flexShrink:0, fontSize:32}}>🤖</div>
+        <div style={{flex:1}}>
+          <p style={{color:'#93c5fd', fontSize:13, fontWeight:600, margin:'0 0 4px'}}>Şifre İpucu ({levelIndex+1}/{LEVELS.length}):</p>
+          <p style={{color:'white', fontSize:24, fontWeight:700, margin:0}}>"{level.hintText}"</p>
+        </div>
+        <button onClick={()=>speak(level.instruction)}
+          style={{width:56, height:56, background:'#475569', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', color:'white', border:'none', cursor:'pointer', boxShadow:'0 4px 8px rgba(0,0,0,0.3)', flexShrink:0}}
+          onMouseEnter={e=>e.currentTarget.style.background='#3b82f6'}
+          onMouseLeave={e=>e.currentTarget.style.background='#475569'}>
+          <VolumeIcon size={28}/>
+        </button>
+      </div>
+
+      {/* KASA */}
+      <div key={shakeKey} className={isError ? 'shake' : ''}
+        style={{position:'relative', background:'linear-gradient(135deg,#475569,#1e293b)', padding:32, borderRadius:28, boxShadow:'0 25px 50px rgba(0,0,0,0.6)', border:'8px solid #64748b', width:'100%', maxWidth:720}}>
+
+        {/* Üst bar */}
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:32, paddingBottom:16, borderBottom:'2px solid #475569'}}>
+          <div style={{display:'flex', gap:12}}>
+            <div style={{width:16, height:16, borderRadius:'50%', background:'#94a3b8'}}/>
+            <div style={{width:16, height:16, borderRadius:'50%', background:'#94a3b8'}}/>
+          </div>
+          <div style={{display:'flex', alignItems:'center', gap:24}}>
+            <div style={{background:'#0f172a', padding:'8px 24px', borderRadius:10, border:'2px solid #334155', fontFamily:'monospace', fontSize:20, color:'#4ade80', letterSpacing:4}}>
+              KASA-0{levelIndex+1}
+            </div>
+            <div style={{width:32, height:32, borderRadius:'50%', background:lightColor, border:'2px solid white', boxShadow:`0 0 16px ${lightColor}`, transition:'background 0.3s, box-shadow 0.3s'}}/>
+          </div>
+        </div>
+
+        {/* İç alan */}
+        <div style={{position:'relative', background:'#0f172a', borderRadius:14, border:'4px solid #334155', padding:32, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:300, overflow:'hidden'}}>
+          {isUnlocked ? (
+            <div style={{display:'flex', flexDirection:'column', alignItems:'center'}}>
+              {/* Konfeti */}
+              <div style={{position:'absolute', inset:0, pointerEvents:'none'}}>
+                {CONFETTI.map((c,i)=>(
+                  <div key={i} className="confetti-piece" style={{left:c.left, width:c.w, height:c.h, background:c.color, borderRadius:c.borderRadius||0, animationDuration:c.dur, animationDelay:c.delay}}/>
+                ))}
+              </div>
+              <div style={{background:'white', padding:16, borderRadius:12, boxShadow:'0 20px 40px rgba(0,0,0,0.5)', transform:'rotate(2deg)', cursor:'pointer', transition:'transform 0.3s'}}
+                onMouseEnter={e=>e.currentTarget.style.transform='rotate(0deg)'}
+                onMouseLeave={e=>e.currentTarget.style.transform='rotate(2deg)'}>
+                <div style={{width:256, height:192, background:'#e5e7eb', border:'2px dashed #9ca3af', borderRadius:8, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'#6b7280', marginBottom:16}}>
+                  <ImgIcon size={64} style={{opacity:0.5, marginBottom:8}}/>
+                  <span style={{fontWeight:600, fontSize:18, textAlign:'center', padding:'0 16px'}}>
+                    {level.target.map((t,i)=>WHEEL_OPTIONS[i][t]).join('')} Fotoğrafı
+                  </span>
+                </div>
+                <p style={{textAlign:'center', fontSize:22, color:'black', fontWeight:700, margin:0}}>Ailemiz ❤️</p>
+              </div>
+            </div>
+          ) : (
+            <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:20, flexWrap:'wrap'}}>
+              <Wheel options={WHEEL_OPTIONS[0]} selectedIndex={selections[0]} onChange={v=>handleChange(0,v)}/>
+              <span style={{fontSize:36, color:'#475569', fontWeight:700}}>+</span>
+              <Wheel options={WHEEL_OPTIONS[1]} selectedIndex={selections[1]} onChange={v=>handleChange(1,v)}/>
+              <span style={{fontSize:36, color:'#475569', fontWeight:700}}>+</span>
+              <Wheel options={WHEEL_OPTIONS[2]} selectedIndex={selections[2]} onChange={v=>handleChange(2,v)}/>
+            </div>
+          )}
+        </div>
+
+        {/* Buton */}
+        <div style={{marginTop:32, display:'flex', justifyContent:'center'}}>
+          <button onClick={handleUnlock} disabled={isUnlocked}
+            style={{display:'flex', alignItems:'center', gap:12, padding:'20px 48px', borderRadius:9999, fontWeight:900, fontSize:22, letterSpacing:2, border:'none', cursor:isUnlocked?'not-allowed':'pointer', background:btnBg, color:isUnlocked?'#94a3b8':isError?'white':'#713f12', boxShadow:isUnlocked?'none':'0 10px 20px rgba(0,0,0,0.4)', transform:isError?'scale(0.95)':'scale(1)', transition:'all 0.2s'}}
+            onMouseEnter={e=>{ if(!isUnlocked&&!isError) e.currentTarget.style.transform='scale(1.05)'; }}
+            onMouseLeave={e=>{ if(!isUnlocked&&!isError) e.currentTarget.style.transform='scale(1)'; }}>
+            {isUnlocked ? <UnlockIcon size={32}/> : <LockIcon size={32}/>}
+            {isUnlocked ? 'AÇILDI' : 'KİLİDİ AÇ'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
 </body>
 </html>
